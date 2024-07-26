@@ -9,6 +9,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <cassert>
 
 #include <unordered_map>
 
@@ -34,24 +36,96 @@ const int MapHeight = 20;
 static const float InitialWindowSizeX = 1280.0f;
 static const float InitialWindowSizeY = 720.0f;
 
-static int s_Fields[MapWidth * MapHeight];
-static glm::vec4 s_ColorMap[MapWidth * MapHeight];
+enum class EFieldType : int16_t
+{
+    Empty = 0,
+    Obstacle
+};
+
+class MapIterator
+{
+public:
+    MapIterator(const class Map* map, glm::ivec2 pos);
+
+    bool operator==(const MapIterator& i) const
+    {
+        return i.m_Pos == m_Pos;
+    }
+
+    bool operator!=(const MapIterator& i) const
+    {
+        return i.m_Pos != m_Pos;
+    }
+
+    MapIterator operator++(int) const;
+    MapIterator& operator++();
+
+    std::pair<glm::ivec2, EFieldType> operator*() const;
+
+private:
+    const class Map* m_Map;
+    glm::ivec2 m_Pos;
+};
+
+class Map
+{
+public:
+    Map(int32_t width, int32_t height);
+
+    EFieldType GetField(int32_t x, int32_t y) const;
+    void SetField(int32_t x, int32_t y, EFieldType field);
+
+    bool IsEmpty(int32_t x, int32_t y) const;
+
+    int32_t GetMapWidth() const;
+    int32_t GetMapHeight() const;
+
+    MapIterator begin() const
+    {
+        return MapIterator{this, glm::ivec2(0, 0)};
+    }
+
+    MapIterator end() const
+    {
+        return MapIterator{this, glm::ivec2(0, m_Height)};
+    }
+
+private:
+    std::vector<EFieldType> m_Fields;
+    int32_t m_Width;
+    int32_t m_Height;
+};
+
 static glm::mat4 s_Projection = glm::ortho(0.0f, InitialWindowSizeX, 0.0f, InitialWindowSizeY, -10.0f, 10.0f);
-static int s_WindowWidth, s_WindowHeight;
+static float s_WindowWidth, s_WindowHeight;
 static float s_CellSize = InitialWindowSizeX / MapWidth;
 
-static const int FieldEmpty = 0;
-
-static glm::vec4 GetColorForField(int field)
+static glm::vec4 GetColorForField(EFieldType field)
 {
     switch (field)
     {
-    case FieldEmpty:
+    case EFieldType::Empty:
         return glm::vec4(0.25f);
+    case EFieldType::Obstacle:
+        return glm::vec4{0.5f, 0.2f, 0.2f, 1.0f}; 
     default:
         break;
     }
     return glm::vec4{0.0f};
+}
+
+static float GetRandomFloat()
+{
+    struct SrandInitializer
+    {
+        SrandInitializer()
+        {
+            std::srand(std::time(nullptr));
+        }
+    };
+
+    static SrandInitializer srandInitializer;
+    return (float)std::rand() / (float)RAND_MAX;
 }
 
 int main()
@@ -61,10 +135,17 @@ int main()
         return EXIT_FAILURE;
     }
 
+    Map map(MapWidth, MapHeight);
+
     std::atexit(&ExitGame);
     s_Window = glfwCreateWindow(InitialWindowSizeX, InitialWindowSizeY, "Game", nullptr, nullptr);
 
-    glfwGetWindowSize(s_Window, &s_WindowWidth, &s_WindowHeight);
+    {
+        int x, y;
+        glfwGetWindowSize(s_Window, &x, &y);
+        s_WindowWidth = x;
+        s_WindowHeight = y;
+    }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -84,23 +165,11 @@ int main()
 
     RectRenderer rectRenderer;
     
-    srand(time(0));
-
-    auto randomFloat = []() -> float
+    for (int i = 0; i < 10; ++i)
     {
-        return (float)rand() / (float)RAND_MAX;
-    };
+        glm::ivec2 pos(std::rand() % MapWidth, std::rand() % MapHeight);
 
-    for (int i = 0; i < std::ssize(s_Fields); ++i)
-    {
-        s_Fields[i] = 0;
-        glm::vec4 color{0.0f};
-        for (int k = 0; k < color.length(); ++k)
-        {
-            color[k] = randomFloat();
-        }
-        
-        s_ColorMap[i] = color;
+        map.SetField(pos.x, pos.y, EFieldType::Obstacle);
     }
 
     while (!glfwWindowShouldClose(s_Window))
@@ -109,25 +178,25 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         rectRenderer.UpdateProjection(s_Projection);
 
-        /* Render bounds first */
-        for (int i = 0; i < std::ssize(s_Fields); ++i)
+        for (auto [pos, field] : map)
         {
-            float posY = i / MapWidth;
-            float posX = i % MapWidth;
+            float posY = pos.y;
+            float posX = pos.x;
 
             posY *= s_CellSize;
             posX *= s_CellSize;
 
-            glm::vec4 color = GetColorForField(s_Fields[i]);
+            glm::vec4 color = GetColorForField(field);
             color *= 0.4f;
 
+            /* Render bounds first */
             rectRenderer.AddRectInstance(glm::vec3{posX, posY, -1.0f},
                 glm::vec3{s_CellSize, s_CellSize, 0.0f}, color);
 
             /* Now render right field */
             rectRenderer.AddRectInstance(glm::vec3{posX + 2.5, posY + 2.5, -1.0f},
                 glm::vec3{s_CellSize - 5, s_CellSize - 5, 0.0f},
-                GetColorForField(s_Fields[i]));
+                GetColorForField(field));
         }
 
         rectRenderer.FlushDraw();
@@ -147,3 +216,73 @@ int main()
 //   4. Use the Error List window to view errors
 //   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
 //   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
+
+Map::Map(int32_t width, int32_t height):
+    m_Fields(static_cast<size_t>(width * height), EFieldType::Empty),
+    m_Width(width),
+    m_Height(height)
+{
+}
+
+EFieldType Map::GetField(int32_t x, int32_t y) const
+{
+    return m_Fields[x + y * m_Width];
+}
+
+void Map::SetField(int32_t x, int32_t y, EFieldType field)
+{
+    m_Fields[x + y * m_Width] = field;
+}
+
+bool Map::IsEmpty(int32_t x, int32_t y) const
+{
+    return GetField(x, y) == EFieldType::Empty;
+}
+
+int32_t Map::GetMapWidth() const
+{
+    return m_Width;
+}
+
+int32_t Map::GetMapHeight() const
+{
+    return m_Height;
+}
+
+MapIterator::MapIterator(const Map* map, glm::ivec2 pos):
+    m_Map(map),
+    m_Pos(pos)
+{
+}
+
+MapIterator MapIterator::operator++(int) const
+{
+    glm::ivec2 pos = m_Pos;
+    pos.x++;
+
+    if (pos.x >= m_Map->GetMapWidth())
+    {
+        pos.x = 0;
+        pos.y++;
+    }
+
+    return MapIterator{m_Map, pos};
+}
+
+MapIterator& MapIterator::operator++()
+{
+    m_Pos.x++;
+
+    if (m_Pos.x >= m_Map->GetMapWidth())
+    {
+        m_Pos.x = 0;
+        m_Pos.y++;
+    }
+
+    return *this;
+}
+
+std::pair<glm::ivec2, EFieldType> MapIterator::operator*() const
+{
+    return {m_Pos, m_Map->GetField(m_Pos.x, m_Pos.y)};
+}
