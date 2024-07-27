@@ -8,6 +8,7 @@ enum class EFieldType : uint8_t
     Empty = 0,
     Obstacle,
     Player,
+    Goal,
     Max
 };
 

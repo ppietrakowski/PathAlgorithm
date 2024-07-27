@@ -26,5 +26,16 @@ public:
     virtual ~IPathFindingAlgorithm() = default;
 
     virtual Path FindPathTo(PathFindingPoint start, PathFindingPoint goal, const IMap* map) = 0;
+
+    virtual void OnUpdate() { }
 };
 
+
+inline bool IsWalkable(const PathFindingPoint& point, const IMap* map)
+{
+    return point.x >= 0 &&
+        point.x < map->GetMapWidth() &&
+        point.y >= 0 &&
+        point.y < map->GetMapHeight() &&
+        map->GetFieldAt(point.x, point.y) == EFieldType::Empty;
+}

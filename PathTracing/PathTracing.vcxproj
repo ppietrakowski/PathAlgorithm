@@ -136,6 +136,7 @@
   <ItemGroup>
     <ClCompile Include="AStarAlgorithm.cpp" />
     <ClCompile Include="Buffers.cpp" />
+    <ClCompile Include="GeneticPathFinding.cpp" />
     <ClCompile Include="Glad\src\glad.c" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
@@ -152,11 +153,13 @@
     <ClCompile Include="RectRenderer.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="UniformBuffer.cpp" />
+    <ClCompile Include="Utils.cpp" />
     <ClCompile Include="VertexArray.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AStarAlgorithm.h" />
     <ClInclude Include="Buffers.h" />
+    <ClInclude Include="GeneticPathFinding.h" />
     <ClInclude Include="Glad\include\glad\glad.h" />
     <ClInclude Include="Glad\include\KHR\khrplatform.h" />
     <ClInclude Include="imgui\imconfig.h" />
@@ -175,6 +178,7 @@
     <ClInclude Include="Shader.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="UniformBuffer.h" />
+    <ClInclude Include="Utils.h" />
     <ClInclude Include="VertexArray.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

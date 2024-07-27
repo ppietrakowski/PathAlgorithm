@@ -23,12 +23,7 @@ struct Node
 
 static double GetHeuristicsForFields(const PathFindingPoint& a, const PathFindingPoint& b)
 {
-    return std::sqrt(std::pow(a.x - b.x, 2) + std::pow(a.y - b.y, 2));
-}
-
-static bool IsWalkable(const PathFindingPoint& point, const IMap* map)
-{
-    return point.x >= 0 && point.x < map->GetMapWidth() && point.y >= 0 && point.y < map->GetMapHeight() &&  map->GetFieldAt(point.x, point.y) == EFieldType::Empty;
+    return abs(a.x - b.x) + abs(a.y - b.y);
 }
 
 struct CompareNode
@@ -76,7 +71,7 @@ struct AStarProrityQueue : public std::priority_queue<Node*, std::vector<Node*>,
 Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, const IMap* map)
 {
     AStarProrityQueue openList;
-    std::unordered_set<PathFindingPoint> closedList;
+    std::unordered_map<PathFindingPoint, bool> closedList;
 
     Node startNode(start);
     Node goalNode(goal);
@@ -88,7 +83,7 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
     {
         Node* currentNode = openList.top();
         openList.pop();
-        closedList.insert(currentNode->Point);
+        closedList[currentNode->Point] = true;
 
         if (currentNode->Point == goal)
         {
@@ -104,7 +99,7 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
 
         for (PathFindingPoint neighbor : neighbors)
         {
-            if (!IsWalkable(neighbor, map) || closedList.find(neighbor) != closedList.end())
+            if (!IsWalkable(neighbor, map) || closedList[neighbor])
             {
                 continue;
             }

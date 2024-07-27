@@ -23,6 +23,7 @@
 #include "LineBatch.h"
 #include "Map.h"
 #include "AStarAlgorithm.h"
+#include "GeneticPathFinding.h"
 
 static GLFWwindow* s_Window = nullptr;
 
@@ -33,43 +34,15 @@ static void ExitGame()
     glfwTerminate();
 }
 
-const int MapWidth = 20;
-const int MapHeight = 20;
+const int MapWidth = 30;
+const int MapHeight = 10;
+static float s_CellSize = 64;
 
-static const float InitialWindowSizeX = 1280.0f;
-static const float InitialWindowSizeY = 720.0f;
+static const float InitialWindowSizeX = MapWidth * s_CellSize;
+static const float InitialWindowSizeY = MapHeight * s_CellSize;
 
 static glm::mat4 s_Projection = glm::ortho(0.0f, InitialWindowSizeX, 0.0f, InitialWindowSizeY, -10.0f, 10.0f);
 static float s_WindowWidth, s_WindowHeight;
-static float s_CellSize = InitialWindowSizeX / MapWidth;
-
-static glm::vec4 GetColorForField(EFieldType field)
-{
-    switch (field)
-    {
-    case EFieldType::Empty:
-        return glm::vec4(0.25f);
-    case EFieldType::Obstacle:
-        return glm::vec4{0.5f, 0.2f, 0.2f, 1.0f};
-    default:
-        break;
-    }
-    return glm::vec4{0.0f};
-}
-
-static float GetRandomFloat()
-{
-    struct SrandInitializer
-    {
-        SrandInitializer()
-        {
-            std::srand(std::time(nullptr));
-        }
-    };
-
-    static SrandInitializer srandInitializer;
-    return (float)std::rand() / (float)RAND_MAX;
-}
 
 int main()
 {
@@ -78,9 +51,13 @@ int main()
         return EXIT_FAILURE;
     }
 
-    Map map(MapWidth, MapHeight);
-
     std::atexit(&ExitGame);
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+
+    glfwWindowHint(GLFW_RESIZABLE, false);
+
     s_Window = glfwCreateWindow(InitialWindowSizeX, InitialWindowSizeY, "Game", nullptr, nullptr);
 
     {
@@ -89,9 +66,6 @@ int main()
         s_WindowWidth = x;
         s_WindowHeight = y;
     }
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
     if (!s_Window)
     {
@@ -106,21 +80,23 @@ int main()
         return EXIT_FAILURE;
     }
 
-    RectRenderer rectRenderer;
-    LineBatch lineBatch;
-
-    lineBatch.Thickness = 2.0f;
+    Map map(MapWidth, MapHeight);
 
     for (int i = 0; i < 10; ++i)
     {
         glm::ivec2 pos(std::rand() % MapWidth, std::rand() % MapHeight);
-
         map.SetField(pos.x, pos.y, EFieldType::Obstacle);
     }
 
     AStarAlgorithm algorithm;
+    GeneticPathFinding geneticPathFinding;
 
-    Path path = std::move(algorithm.FindPathTo(PathFindingPoint(0, 0), PathFindingPoint(10, 5), &map));
+    IPathFindingAlgorithm* pathFindingAlgorithm = &algorithm;
+
+    map.AddPlayer(glm::ivec2(8, 5));
+    map.AddPlayer(glm::ivec2(8, 4));
+
+    Path path = std::move(pathFindingAlgorithm->FindPathTo(PathFindingPoint(0, 0), PathFindingPoint(10, 5), &map));
 
     std::cout << "Path found:\n";
     for (const auto& p : path)
@@ -132,51 +108,8 @@ int main()
     {
         glfwPollEvents();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        rectRenderer.UpdateProjection(s_Projection);
-        lineBatch.OnBeginScene(s_Projection);
-
-        for (auto [pos, field] : map)
-        {
-            float posY = pos.y;
-            float posX = pos.x;
-
-            posY *= s_CellSize;
-            posX *= s_CellSize;
-
-            glm::vec4 color = GetColorForField(field);
-            color *= 0.4f;
-
-            /* Render bounds first */
-            rectRenderer.AddRectInstance(glm::vec3{posX, posY, -1.0f},
-                glm::vec3{s_CellSize, s_CellSize, 0.0f}, color);
-
-            /* Now render right field */
-            rectRenderer.AddRectInstance(glm::vec3{posX + 2.5, posY + 2.5, -1.0f},
-                glm::vec3{s_CellSize - 5, s_CellSize - 5, 0.0f},
-                GetColorForField(field));
-        }
-
-        for (size_t i = 0; path.size() > 0 && i < path.size() - 1; ++i)
-        {
-            glm::vec3 pos = glm::vec3{path[i], 0};
-            glm::vec3 nextpos = glm::vec3{path[i + 1], 0};
-
-            for (int j = 0; j < pos.length(); ++j)
-            {
-                pos[j] *= s_CellSize;
-                nextpos[j] *= s_CellSize;
-            }
-
-            pos.x -= s_CellSize / 2;
-            pos.y += s_CellSize / 2;
-            nextpos.x -= s_CellSize / 2;
-            nextpos.y += s_CellSize / 2;
-
-            lineBatch.DrawLine(pos, nextpos, glm::mat4{1.0f});
-        }
-
-        rectRenderer.FlushDraw();
-        lineBatch.FlushDraw();
+        map.DrawPath(path, 0);
+        map.Draw(s_Projection);
         glfwSwapBuffers(s_Window);
     }
 
