@@ -138,7 +138,10 @@ struct Player
 
     void RecalculatePath(IPathFindingAlgorithm* algorithm, Map* map)
     {
-        Goal = CurrentPath.back();
+        if (!CurrentPath.empty())
+        {
+            Goal = CurrentPath.back();
+        }
         CurrentPath = std::move(algorithm->FindPathTo(Pos, Goal, map));
     }
 };
@@ -225,7 +228,7 @@ int main()
 
     const char* pathFindingModes[] = {
         "A* Path finding",
-        "Genetic path finding"
+        "Genetic path finding (Not deterministics, may be not sufficient to implement this in game)"
     };
 
     const char* modes[] = {
@@ -439,6 +442,46 @@ int main()
             }
 
             ImGui::Checkbox("bAutoSwitchToTargetPostAddedAgent", &bAutoSwitchToSelectingDestination);
+
+            if (&geneticPathFinding == pathFindingAlgorithm)
+            {
+                static float MutRate = 0.01f;
+
+                ImGui::LabelText("Genetic algorithm settings", "Genetic algorithm settings");
+                if (ImGui::DragFloat("MutationRate", &MutRate, 0.01f, 0.01f, 1.0f))
+                {
+                    geneticPathFinding.MutationRate = MutRate;
+
+                    for (Player& player : players)
+                    {
+                        player.RecalculatePath(pathFindingAlgorithm, &map);
+                    }
+                }
+
+                static int NumGens = 100;
+
+                if (ImGui::DragInt("NumGenerations", &NumGens, 1, 10, 1000))
+                {
+                    geneticPathFinding.NumGenerations = NumGens;
+
+                    for (Player& player : players)
+                    {
+                        player.RecalculatePath(pathFindingAlgorithm, &map);
+                    }
+                }
+
+                static int PopSize = 100;
+
+                if (ImGui::DragInt("Population size", &PopSize, 1, 10, 1000))
+                {
+                    geneticPathFinding.PopulationSize = PopSize;
+
+                    for (Player& player : players)
+                    {
+                        player.RecalculatePath(pathFindingAlgorithm, &map);
+                    }
+                }
+            }
 
             ImGui::End();
         }
