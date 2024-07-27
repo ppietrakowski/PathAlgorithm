@@ -13,14 +13,17 @@
 #include <cassert>
 
 #include <unordered_map>
+#include <chrono>
 
 #include "Shader.h"
 #include "Buffers.h"
 #include "VertexArray.h"
 #include "UniformBuffer.h"
 
-#include "RectRenderer.h"
-#include "LineBatch.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_opengl3.h"
+
 #include "Map.h"
 #include "AStarAlgorithm.h"
 #include "GeneticPathFinding.h"
@@ -43,6 +46,79 @@ static const float InitialWindowSizeY = MapHeight * s_CellSize;
 
 static glm::mat4 s_Projection = glm::ortho(0.0f, InitialWindowSizeX, 0.0f, InitialWindowSizeY, -10.0f, 10.0f);
 static float s_WindowWidth, s_WindowHeight;
+
+struct Player
+{
+    glm::ivec2 Pos{0,0};
+    glm::ivec2 PrevPos{0, 0};
+
+    Path CurrentPath;
+    size_t CurrentNodeIndex = 0;
+
+    glm::vec2 interpolatedPos = Pos;
+
+    void Move(IPathFindingAlgorithm* algorithm, Map* map)
+    {
+        if (CurrentNodeIndex >= CurrentPath.size())
+        {
+            return;
+        }
+
+        PrevPos = Pos;
+        Pos = CurrentPath[CurrentNodeIndex];
+
+        if (map->GetFieldAt(Pos.x, Pos.y) != EFieldType::Empty)
+        {
+            glm::ivec2 goal = CurrentPath.back();
+            Pos = PrevPos;
+            CurrentPath = std::move(algorithm->FindPathTo(PrevPos, goal, map));
+            CurrentNodeIndex = 0;
+            return;
+        }
+
+        ++CurrentNodeIndex;
+    }
+
+    void Draw(Map* map)
+    {
+        map->RemovePlayer(PrevPos);
+        map->AddPlayer(Pos);
+
+        if (interpolatedPos == glm::vec2(0.0f))
+        {
+            interpolatedPos = Pos;
+        }
+        else
+        {
+            PathFindingPoint point = Pos;
+            if (CurrentNodeIndex < CurrentPath.size())
+            {
+                point = CurrentPath[CurrentNodeIndex];
+            }
+
+            interpolatedPos = glm::mix(interpolatedPos, glm::vec2(point), 0.125f);
+        }
+
+        RectRenderer& rectRenderer = map->GetRectRenderer();
+        float CellSize = map->CellSize;
+
+        float posX = interpolatedPos.x;
+        float posY = interpolatedPos.y;
+
+        posY *= CellSize;
+        posX *= CellSize;
+
+        rectRenderer.AddRectInstance(glm::vec3{posX + 12.5, posY + 12.5, -1.0f},
+            glm::vec3{CellSize - 25, CellSize - 25, 0.0f},
+            GetColorForField(EFieldType::Player));
+    }
+
+    void RecalculatePath(IPathFindingAlgorithm* algorithm, Map* map)
+    {
+        glm::ivec2 goal = CurrentPath.back();
+        CurrentPath = std::move(algorithm->FindPathTo(Pos, goal, map));
+    }
+};
 
 int main()
 {
@@ -80,6 +156,25 @@ int main()
         return EXIT_FAILURE;
     }
 
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
+    ImGui::StyleColorsClassic();
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+
+    ImGui_ImplGlfw_InitForOpenGL(s_Window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
     Map map(MapWidth, MapHeight);
 
     for (int i = 0; i < 10; ++i)
@@ -93,25 +188,112 @@ int main()
 
     IPathFindingAlgorithm* pathFindingAlgorithm = &algorithm;
 
-    map.AddPlayer(glm::ivec2(8, 5));
-    map.AddPlayer(glm::ivec2(8, 4));
+    glm::ivec2 start{0, 0};
+    glm::ivec2 goal{10, 5};
 
-    Path path = std::move(pathFindingAlgorithm->FindPathTo(PathFindingPoint(0, 0), PathFindingPoint(10, 5), &map));
+    bool bShowTestWindow = false;
 
-    std::cout << "Path found:\n";
-    for (const auto& p : path)
-    {
-        std::cout << "(" << p.x << ", " << p.y << ")\n";
-    }
+    const char* pathFindingModes[] = {
+        "A* Path finding",
+        "Genetic path finding"
+    };
+
+    typedef std::chrono::system_clock SystemClock;
+
+    auto startTime = SystemClock::now();
+
+    std::vector<Player> players;
+    players.emplace_back();
+    players.back().Pos = start;
+    players.back().CurrentPath = std::move(pathFindingAlgorithm->FindPathTo(start, goal, &map));
+    players.back().CurrentNodeIndex = 1;
 
     while (!glfwWindowShouldClose(s_Window))
     {
         glfwPollEvents();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        map.DrawPath(path, 0);
+
+        if (SystemClock::now() - startTime >= std::chrono::milliseconds{300})
+        {
+            startTime = SystemClock::now();
+
+            for (Player& player : players)
+            {
+                player.Move(pathFindingAlgorithm, &map);
+            }
+        }
+
         map.Draw(s_Projection);
+        for (Player& player : players)
+        {
+            player.Draw(&map);
+            map.DrawPath(player.CurrentPath, player.CurrentNodeIndex ? player.CurrentNodeIndex - 1 : 0, player.interpolatedPos);
+        }
+
+        map.FlushDraw();
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        if (bShowTestWindow)
+        {
+            ImGui::ShowDemoWindow();
+        }
+        else
+        {
+            static int selectedPathAlgo;
+
+            ImGui::Begin("Settings");
+            if (ImGui::Combo("Path finding algorithm", &selectedPathAlgo, pathFindingModes, IM_ARRAYSIZE(pathFindingModes)))
+            {
+                IPathFindingAlgorithm* newPathAlgorithm = nullptr;
+
+                switch (selectedPathAlgo)
+                {
+                case 0:
+                    newPathAlgorithm = &algorithm;
+                    break;
+                case 1:
+                    newPathAlgorithm = &geneticPathFinding;
+                    break;
+                default:
+                    break;
+                }
+
+                if (newPathAlgorithm != pathFindingAlgorithm)
+                {
+                    for (Player& player : players)
+                    {
+                        player.RecalculatePath(newPathAlgorithm, &map);
+                    }
+
+                    pathFindingAlgorithm = newPathAlgorithm;
+                }
+            }
+
+            ImGui::End();
+        }
+
+        ImGui::Render();
+        int32_t display_w, display_h;
+        glfwGetFramebufferSize(s_Window, &display_w, &display_h);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
+
         glfwSwapBuffers(s_Window);
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     return EXIT_SUCCESS;
 }

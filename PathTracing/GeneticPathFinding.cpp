@@ -58,6 +58,11 @@ Path GeneticPathFinding::FindPathTo(PathFindingPoint start, PathFindingPoint goa
 
         if (m_Population.front().path.back() == m_Goal)
         {
+            if (generation == 0)
+            {
+                continue;
+            }
+
             std::cout << "Path found in generation " << generation << ":\n";
 
             Path foundPath = std::move(m_Population.front().path);

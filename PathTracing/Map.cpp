@@ -1,6 +1,6 @@
 #include "Map.h"
 
-static glm::vec4 GetColorForField(EFieldType field)
+glm::vec4 GetColorForField(EFieldType field)
 {
     switch (field)
     {
@@ -8,6 +8,8 @@ static glm::vec4 GetColorForField(EFieldType field)
         return glm::vec4(0.25f);
     case EFieldType::Obstacle:
         return glm::vec4{0.5f, 0.2f, 0.2f, 1.0f};
+    case EFieldType::Player:
+        return glm::vec4(0.5f, 0.2f, 0.5f, 1.0f);
     default:
         break;
     }
@@ -75,14 +77,27 @@ void Map::Draw(const glm::mat4& projection)
         glm::vec4 color = GetColorForField(field);
         color *= 0.4f;
 
-        /* Render bounds first */
-        rectRenderer.AddRectInstance(glm::vec3{posX, posY, -1.0f},
-            glm::vec3{CellSize, CellSize, 0.0f}, color);
+        if (field != EFieldType::Player)
+        {
+            /* Render bounds first */
+            rectRenderer.AddRectInstance(glm::vec3{posX, posY, -1.0f},
+                glm::vec3{CellSize, CellSize, 0.0f}, color);
 
-        /* Now render right field */
-        rectRenderer.AddRectInstance(glm::vec3{posX + 2.5, posY + 2.5, -1.0f},
-            glm::vec3{CellSize - 5, CellSize - 5, 0.0f},
-            GetColorForField(field));
+            /* Now render right field */
+            rectRenderer.AddRectInstance(glm::vec3{posX + 2.5, posY + 2.5, -1.0f},
+                glm::vec3{CellSize - 5, CellSize - 5, 0.0f},
+                GetColorForField(field));
+        }
+        else
+        {
+            rectRenderer.AddRectInstance(glm::vec3{posX, posY, -1.0f},
+                glm::vec3{CellSize, CellSize, 0.0f}, GetColorForField(EFieldType::Empty) * 0.4f);
+
+            /* Now render right field */
+            rectRenderer.AddRectInstance(glm::vec3{posX + 2.5, posY + 2.5, -1.0f},
+                glm::vec3{CellSize - 5, CellSize - 5, 0.0f},
+                GetColorForField(EFieldType::Empty));
+        }
     }
 
     rectRenderer.FlushDraw();
@@ -99,9 +114,28 @@ void Map::RemovePlayer(glm::ivec2 playerPos)
     SetField(playerPos.x, playerPos.y, EFieldType::Empty);
 }
 
-void Map::DrawPath(const Path& path, size_t startIndex, glm::vec4 color)
+void Map::DrawPath(const Path& path, size_t startIndex, glm::vec2 startPos, glm::vec4 color)
 {
-    for (size_t i = 0; path.size() > 0 && i < path.size() - 1; ++i)
+    if (startIndex + 1 < path.size())
+    {
+        glm::vec3 nextpos = glm::vec3{path[startIndex + 1], 0};
+        glm::vec3 pos{startPos, 0};
+
+        for (int j = 0; j < pos.length(); ++j)
+        {
+            pos[j] *= CellSize;
+            nextpos[j] *= CellSize;
+        }
+        
+        pos.x += CellSize / 2;
+        pos.y += CellSize / 2;
+        nextpos.x += CellSize / 2;
+        nextpos.y += CellSize / 2;
+
+        lineBatch.DrawLine(pos, nextpos, glm::mat4{1.0f}, color);
+    }
+
+    for (size_t i = startIndex + 1; path.size() > 0 && i < path.size() - 1; ++i)
     {
         glm::vec3 pos = glm::vec3{path[i], 0};
         glm::vec3 nextpos = glm::vec3{path[i + 1], 0};
@@ -119,4 +153,15 @@ void Map::DrawPath(const Path& path, size_t startIndex, glm::vec4 color)
 
         lineBatch.DrawLine(pos, nextpos, glm::mat4{1.0f}, color);
     }
+}
+
+RectRenderer& Map::GetRectRenderer()
+{
+    return rectRenderer;
+}
+
+void Map::FlushDraw()
+{
+    rectRenderer.FlushDraw();
+    lineBatch.FlushDraw();
 }
