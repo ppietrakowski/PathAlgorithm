@@ -62,6 +62,7 @@ struct Player
     size_t CurrentNodeIndex = 0;
 
     glm::vec2 interpolatedPos = Pos;
+    PathFindingPoint Goal;
 
     void Move(IPathFindingAlgorithm* algorithm, Map* map)
     {
@@ -74,7 +75,7 @@ struct Player
         Pos = CurrentPath[CurrentNodeIndex];
 
         EFieldType field = map->GetFieldAt(Pos.x, Pos.y);
-        if (field != EFieldType::Empty && Pos != PrevPos)
+        if ((field != EFieldType::Empty && field != EFieldType::Goal) && Pos != PrevPos)
         {
             glm::ivec2 goal = CurrentPath.back();
             Pos = PrevPos;
@@ -103,12 +104,17 @@ struct Player
                 point = CurrentPath[CurrentNodeIndex];
             }
 
-            if (IsAlreadyOccupiedBySomeone(map))
+            if (IsAlreadyOccupiedBySomeone(map, point))
             {
                 point = Pos;
             }
 
             interpolatedPos = glm::mix(interpolatedPos, glm::vec2(point), 0.125f);
+
+            if (glm::distance(interpolatedPos, glm::vec2(Pos)) < 0.1f)
+            {
+                interpolatedPos = Pos;
+            }
         }
 
         RectRenderer& rectRenderer = map->GetRectRenderer();
@@ -125,15 +131,15 @@ struct Player
             GetColorForField(EFieldType::Player));
     }
 
-    bool IsAlreadyOccupiedBySomeone(const Map* map) const
+    bool IsAlreadyOccupiedBySomeone(const Map* map, PathFindingPoint point) const
     {
-        return map->GetFieldAt(Pos.x, Pos.y) != EFieldType::Empty;
+        return point != Pos && map->GetFieldAt(Pos.x, Pos.y) != EFieldType::Empty && map->GetFieldAt(Pos.x, Pos.y) != EFieldType::Goal;
     }
 
     void RecalculatePath(IPathFindingAlgorithm* algorithm, Map* map)
     {
-        glm::ivec2 goal = CurrentPath.back();
-        CurrentPath = std::move(algorithm->FindPathTo(Pos, goal, map));
+        Goal = CurrentPath.back();
+        CurrentPath = std::move(algorithm->FindPathTo(Pos, Goal, map));
     }
 };
 
@@ -214,7 +220,6 @@ int main()
     IPathFindingAlgorithm* pathFindingAlgorithm = &algorithm;
 
     glm::ivec2 start{0, 0};
-    glm::ivec2 goal{10, 5};
 
     bool bShowTestWindow = false;
 
@@ -226,18 +231,27 @@ int main()
     const char* modes[] = {
         "Selecting target",
         "Placing obstacles",
+        "Remove agent",
         "Place agent"
     };
 
     typedef std::chrono::system_clock SystemClock;
+
+    constexpr size_t MaxAgents = 10;
 
     auto startTime = SystemClock::now();
 
     std::vector<Player> players;
     players.emplace_back();
     players.back().Pos = start;
-    players.back().CurrentPath = std::move(pathFindingAlgorithm->FindPathTo(start, goal, &map));
-    players.back().CurrentNodeIndex = 1;
+    players.back().Goal = start;
+    int targetPlayer = 0;
+
+    const char* agents[MaxAgents] = {
+        "Agent 0", "Agent 1", "Agent 2", "Agent 3", "Agent 4", "Agent 5", "Agent 6", "Agent 7", "Agent 8", "Agent 9"
+    };
+
+    int numRightClickOptions = IM_ARRAYSIZE(modes);
 
     while (!glfwWindowShouldClose(s_Window))
     {
@@ -267,7 +281,6 @@ int main()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        int targetPlayer = 0;
 
         if (bShowTestWindow)
         {
@@ -305,13 +318,14 @@ int main()
                 }
             }
 
-            static int rightClickOperation = 1;
+            static int rightClickOperationIndex = 1;
+            static bool bAutoSwitchToSelectingDestination = true;
 
-            if (ImGui::Combo("Right click operation", &rightClickOperation, modes, IM_ARRAYSIZE(modes)))
+            if (ImGui::Combo("Right click operation", &rightClickOperationIndex, modes, numRightClickOptions))
             {
             }
 
-            if (s_bClickedMouseLastFrame)
+            if (s_bClickedMouseLastFrame && !(ImGui::IsWindowHovered() || ImGui::IsWindowFocused()))
             {
                 double x, y;
                 glfwGetCursorPos(s_Window, &x, &y);
@@ -323,14 +337,108 @@ int main()
                 x = SnapToGrid(x, 1);
                 y = SnapToGrid(y, 1);
 
-                if (rightClickOperation == 0)
+                if (rightClickOperationIndex == 0)
                 {
+                    if (!players.empty())
+                    {
+                        glm::ivec2 copy = players[targetPlayer].Goal;
+
+                        map.SetField(players[targetPlayer].Goal.x, players[targetPlayer].Goal.y, EFieldType::Empty);
+                        players[targetPlayer].Goal = {(int)x, (int)y};
+
+                        if (map.GetFieldAt(players[targetPlayer].Goal.x, players[targetPlayer].Goal.y) == EFieldType::Empty)
+                        {
+                            players[targetPlayer].CurrentPath = pathFindingAlgorithm->FindPathTo(players[targetPlayer].Pos,
+                                players[targetPlayer].Goal, &map);
+                            players[targetPlayer].CurrentNodeIndex = 0;
+                        }
+                        else
+                        {
+                            players[targetPlayer].Goal = copy;
+                        }
+
+                        map.SetField(players[targetPlayer].Goal.x, players[targetPlayer].Goal.y, EFieldType::Goal);
+                    }
                 }
-                else if (rightClickOperation == 1)
+                else if (rightClickOperationIndex == 1)
                 {
-                    map.SetField((int)x, (int)y, EFieldType::Obstacle);
+                    EFieldType field = map.GetFieldAt((int)x, (int)y);
+
+                    if (field == EFieldType::Obstacle)
+                    {
+                        map.SetField((int)x, (int)y, EFieldType::Empty);
+                    }
+                    else if (field == EFieldType::Empty)
+                    {
+                        map.SetField((int)x, (int)y, EFieldType::Obstacle);
+                    }
+                }
+                else if (rightClickOperationIndex == 2)
+                {
+                    PathFindingPoint placePoint = {(int)x, (int)y};
+
+                    if (map.GetFieldAt(placePoint.x, placePoint.y) == EFieldType::Player)
+                    {
+                        auto i = std::find_if(players.begin(), players.end(), [&](const Player& player)
+                        {
+                            return player.Pos == placePoint;
+                        });
+
+                        if (i != players.end())
+                        {
+                            if (targetPlayer >= players.size() - 1)
+                            {
+                                targetPlayer = 0;
+                            }
+
+                            map.SetField(placePoint.x, placePoint.y, EFieldType::Empty);
+                            players.erase(i);
+
+                            if (players.empty())
+                            {
+                                numRightClickOptions = IM_ARRAYSIZE(modes);
+                            }
+
+                        }
+
+                        if (bAutoSwitchToSelectingDestination)
+                        {
+                            rightClickOperationIndex = 0;
+                        }
+                    }
+
+                    if (players.size() == MaxAgents)
+                    {
+                        numRightClickOptions = IM_ARRAYSIZE(modes) - 1;
+                    }
+                }
+                else if (rightClickOperationIndex == 3)
+                {
+                    PathFindingPoint placePoint = {(int)x, (int)y};
+
+                    if (players.size() < MaxAgents && map.GetFieldAt(placePoint.x, placePoint.y) == EFieldType::Empty)
+                    {
+                        targetPlayer = (int)players.size();
+                        players.emplace_back();
+                        players[targetPlayer].Pos = players[targetPlayer].PrevPos = placePoint;
+
+                        players[targetPlayer].CurrentNodeIndex = 0;
+
+                        if (bAutoSwitchToSelectingDestination)
+                        {
+                            rightClickOperationIndex = 0;
+                        }
+                    }
+
+                    if (players.size() == MaxAgents)
+                    {
+                        rightClickOperationIndex = 0;
+                        numRightClickOptions = IM_ARRAYSIZE(modes) - 1;
+                    }
                 }
             }
+
+            ImGui::Checkbox("bAutoSwitchToTargetPostAddedAgent", &bAutoSwitchToSelectingDestination);
 
             ImGui::End();
         }
@@ -358,15 +466,3 @@ int main()
 
     return EXIT_SUCCESS;
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
-

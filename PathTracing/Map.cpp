@@ -10,6 +10,8 @@ glm::vec4 GetColorForField(EFieldType field)
         return glm::vec4{0.5f, 0.2f, 0.2f, 1.0f};
     case EFieldType::Player:
         return glm::vec4(0.5f, 0.2f, 0.5f, 1.0f);
+    case EFieldType::Goal:
+        return glm::vec4(0.1f, 0.1f, 0.76f, 1.0f);
     default:
         break;
     }

@@ -37,5 +37,8 @@ inline bool IsWalkable(const PathFindingPoint& point, const IMap* map)
         point.x < map->GetMapWidth() &&
         point.y >= 0 &&
         point.y < map->GetMapHeight() &&
-        map->GetFieldAt(point.x, point.y) == EFieldType::Empty;
+        (
+            map->GetFieldAt(point.x, point.y) == EFieldType::Empty ||
+            map->GetFieldAt(point.x, point.y) == EFieldType::Goal
+        );
 }
