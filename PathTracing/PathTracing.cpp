@@ -63,6 +63,7 @@ struct Player
 
     glm::vec2 interpolatedPos = Pos;
     PathFindingPoint Goal;
+    glm::vec4 LineColor{1.0f};
 
     void Move(IPathFindingAlgorithm* algorithm, Map* map)
     {
@@ -275,7 +276,7 @@ int main()
         for (Player& player : players)
         {
             player.Draw(&map);
-            map.DrawPath(player.CurrentPath, player.CurrentNodeIndex ? player.CurrentNodeIndex - 1 : 0, player.interpolatedPos);
+            map.DrawPath(player.CurrentPath, player.CurrentNodeIndex ? player.CurrentNodeIndex - 1 : 0, player.interpolatedPos, player.LineColor);
         }
 
         map.FlushDraw();
@@ -481,6 +482,12 @@ int main()
                         player.RecalculatePath(pathFindingAlgorithm, &map);
                     }
                 }
+            }
+
+            ImGui::Combo("Agents", &targetPlayer, agents, (int)players.size());
+
+            if (!players.empty() && ImGui::ColorEdit4("Agent line color: ", &players[targetPlayer].LineColor[0]))
+            {
             }
 
             ImGui::End();
