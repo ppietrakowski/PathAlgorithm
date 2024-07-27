@@ -109,7 +109,7 @@ int main()
     RectRenderer rectRenderer;
     LineBatch lineBatch;
 
-    lineBatch.Thickness = 3.0f;
+    lineBatch.Thickness = 2.0f;
 
     for (int i = 0; i < 10; ++i)
     {

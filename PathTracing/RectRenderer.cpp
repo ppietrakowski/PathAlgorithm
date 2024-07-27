@@ -99,7 +99,7 @@ public:
 
     void AddRectInstance(glm::vec3 pos, glm::vec3 size, glm::vec4 color)
     {
-        if (m_Transforms.size() == 400)
+        if (m_Transforms.size() == MaxNumBatchedColors)
         {
             FlushDraw();
         }

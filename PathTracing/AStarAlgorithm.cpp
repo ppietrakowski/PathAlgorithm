@@ -82,6 +82,8 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
     Node goalNode(goal);
     openList.push(&startNode);
 
+    std::vector<std::unique_ptr<Node>> nodesToDelete;
+
     while (!openList.empty())
     {
         Node* currentNode = openList.top();
@@ -90,14 +92,6 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
 
         if (currentNode->Point == goal)
         {
-            for (auto node : openList)
-            {
-                if (node != &startNode && node != &goalNode)
-                {
-                    delete node;
-                }
-            }
-
             return ReconstructPath(currentNode);
         }
 
@@ -120,7 +114,9 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
             neighborNode->Heuristics = GetHeuristicsForFields(neighbor, goal);
             neighborNode->EvaluationFunc = neighborNode->CostFunc + neighborNode->Heuristics;
 
-            auto it = find_if(openList.begin(), openList.end(), [&](Node* n)
+            nodesToDelete.emplace_back(neighborNode);
+
+            auto it = std::find_if(openList.begin(), openList.end(), [&](Node* n)
             {
                 return n->Point == neighbor;
             });
@@ -128,10 +124,6 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
             if (it == openList.end() || neighborNode->CostFunc < (*it)->CostFunc)
             {
                 openList.push(neighborNode);
-            }
-            else
-            {
-                delete neighborNode;
             }
         }
     }
