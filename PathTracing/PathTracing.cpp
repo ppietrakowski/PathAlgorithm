@@ -43,9 +43,15 @@ static float s_CellSize = 64;
 
 static const float InitialWindowSizeX = MapWidth * s_CellSize;
 static const float InitialWindowSizeY = MapHeight * s_CellSize;
+static bool s_bClickedMouseLastFrame = false;
 
 static glm::mat4 s_Projection = glm::ortho(0.0f, InitialWindowSizeX, 0.0f, InitialWindowSizeY, -10.0f, 10.0f);
 static float s_WindowWidth, s_WindowHeight;
+
+static float SnapToGrid(float value, float gridSize)
+{
+    return gridSize * (int)(value / gridSize);
+}
 
 struct Player
 {
@@ -67,11 +73,12 @@ struct Player
         PrevPos = Pos;
         Pos = CurrentPath[CurrentNodeIndex];
 
-        if (map->GetFieldAt(Pos.x, Pos.y) != EFieldType::Empty)
+        EFieldType field = map->GetFieldAt(Pos.x, Pos.y);
+        if (field != EFieldType::Empty && Pos != PrevPos)
         {
             glm::ivec2 goal = CurrentPath.back();
             Pos = PrevPos;
-            CurrentPath = std::move(algorithm->FindPathTo(PrevPos, goal, map));
+            RecalculatePath(algorithm, map);
             CurrentNodeIndex = 0;
             return;
         }
@@ -96,6 +103,11 @@ struct Player
                 point = CurrentPath[CurrentNodeIndex];
             }
 
+            if (IsAlreadyOccupiedBySomeone(map))
+            {
+                point = Pos;
+            }
+
             interpolatedPos = glm::mix(interpolatedPos, glm::vec2(point), 0.125f);
         }
 
@@ -111,6 +123,11 @@ struct Player
         rectRenderer.AddRectInstance(glm::vec3{posX + 12.5, posY + 12.5, -1.0f},
             glm::vec3{CellSize - 25, CellSize - 25, 0.0f},
             GetColorForField(EFieldType::Player));
+    }
+
+    bool IsAlreadyOccupiedBySomeone(const Map* map) const
+    {
+        return map->GetFieldAt(Pos.x, Pos.y) != EFieldType::Empty;
     }
 
     void RecalculatePath(IPathFindingAlgorithm* algorithm, Map* map)
@@ -142,6 +159,14 @@ int main()
         s_WindowWidth = x;
         s_WindowHeight = y;
     }
+
+    glfwSetMouseButtonCallback(s_Window, [](GLFWwindow* window, int key, int action, int mods)
+    {
+        if (action == GLFW_PRESS && key == GLFW_MOUSE_BUTTON_LEFT)
+        {
+            s_bClickedMouseLastFrame = true;
+        }
+    });
 
     if (!s_Window)
     {
@@ -198,6 +223,12 @@ int main()
         "Genetic path finding"
     };
 
+    const char* modes[] = {
+        "Selecting target",
+        "Placing obstacles",
+        "Place agent"
+    };
+
     typedef std::chrono::system_clock SystemClock;
 
     auto startTime = SystemClock::now();
@@ -236,6 +267,8 @@ int main()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        int targetPlayer = 0;
+
         if (bShowTestWindow)
         {
             ImGui::ShowDemoWindow();
@@ -272,6 +305,33 @@ int main()
                 }
             }
 
+            static int rightClickOperation = 1;
+
+            if (ImGui::Combo("Right click operation", &rightClickOperation, modes, IM_ARRAYSIZE(modes)))
+            {
+            }
+
+            if (s_bClickedMouseLastFrame)
+            {
+                double x, y;
+                glfwGetCursorPos(s_Window, &x, &y);
+
+                y = s_WindowHeight - y;
+                x /= map.CellSize;
+                y /= map.CellSize;
+
+                x = SnapToGrid(x, 1);
+                y = SnapToGrid(y, 1);
+
+                if (rightClickOperation == 0)
+                {
+                }
+                else if (rightClickOperation == 1)
+                {
+                    map.SetField((int)x, (int)y, EFieldType::Obstacle);
+                }
+            }
+
             ImGui::End();
         }
 
@@ -288,6 +348,7 @@ int main()
             glfwMakeContextCurrent(backup_current_context);
         }
 
+        s_bClickedMouseLastFrame = false;
         glfwSwapBuffers(s_Window);
     }
 
