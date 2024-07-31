@@ -28,6 +28,9 @@
 #include "AStarAlgorithm.h"
 #include "GeneticPathFinding.h"
 
+#include "Player.h"
+#include "Renderer.h"
+
 static GLFWwindow* s_Window = nullptr;
 
 static void ExitGame()
@@ -53,99 +56,6 @@ static float SnapToGrid(float value, float gridSize)
     return gridSize * (int)(value / gridSize);
 }
 
-struct Player
-{
-    glm::ivec2 Pos{0,0};
-    glm::ivec2 PrevPos{0, 0};
-
-    Path CurrentPath;
-    size_t CurrentNodeIndex = 0;
-
-    glm::vec2 interpolatedPos = Pos;
-    PathFindingPoint Goal;
-    glm::vec4 LineColor{1.0f};
-
-    void Move(IPathFindingAlgorithm* algorithm, Map* map)
-    {
-        if (CurrentNodeIndex >= CurrentPath.size())
-        {
-            return;
-        }
-
-        PrevPos = Pos;
-        Pos = CurrentPath[CurrentNodeIndex];
-
-        EFieldType field = map->GetFieldAt(Pos.x, Pos.y);
-        if ((field != EFieldType::Empty && field != EFieldType::Goal) && Pos != PrevPos)
-        {
-            glm::ivec2 goal = CurrentPath.back();
-            Pos = PrevPos;
-            RecalculatePath(algorithm, map);
-            CurrentNodeIndex = 0;
-            return;
-        }
-
-        ++CurrentNodeIndex;
-    }
-
-    void Draw(Map* map)
-    {
-        map->RemovePlayer(PrevPos);
-        map->AddPlayer(Pos);
-
-        if (interpolatedPos == glm::vec2(0.0f))
-        {
-            interpolatedPos = Pos;
-        }
-        else
-        {
-            PathFindingPoint point = Pos;
-            if (CurrentNodeIndex < CurrentPath.size())
-            {
-                point = CurrentPath[CurrentNodeIndex];
-            }
-
-            if (IsAlreadyOccupiedBySomeone(map, point))
-            {
-                point = Pos;
-            }
-
-            interpolatedPos = glm::mix(interpolatedPos, glm::vec2(point), 0.125f);
-
-            if (glm::distance(interpolatedPos, glm::vec2(Pos)) < 0.1f)
-            {
-                interpolatedPos = Pos;
-            }
-        }
-
-        RectRenderer& rectRenderer = map->GetRectRenderer();
-        float CellSize = map->CellSize;
-
-        float posX = interpolatedPos.x;
-        float posY = interpolatedPos.y;
-
-        posY *= CellSize;
-        posX *= CellSize;
-
-        rectRenderer.AddRectInstance(glm::vec3{posX + 12.5, posY + 12.5, -1.0f},
-            glm::vec3{CellSize - 25, CellSize - 25, 0.0f},
-            GetColorForField(EFieldType::Player));
-    }
-
-    bool IsAlreadyOccupiedBySomeone(const Map* map, PathFindingPoint point) const
-    {
-        return point != Pos && map->GetFieldAt(Pos.x, Pos.y) != EFieldType::Empty && map->GetFieldAt(Pos.x, Pos.y) != EFieldType::Goal;
-    }
-
-    void RecalculatePath(IPathFindingAlgorithm* algorithm, Map* map)
-    {
-        if (!CurrentPath.empty())
-        {
-            Goal = CurrentPath.back();
-        }
-        CurrentPath = std::move(algorithm->FindPathTo(Pos, Goal, map));
-    }
-};
 
 int main()
 {
@@ -246,9 +156,7 @@ int main()
     auto startTime = SystemClock::now();
 
     std::vector<Player> players;
-    players.emplace_back();
-    players.back().Pos = start;
-    players.back().Goal = start;
+    players.emplace_back(start, start);
     int targetPlayer = 0;
 
     const char* agents[MaxAgents] = {
@@ -256,6 +164,8 @@ int main()
     };
 
     int numRightClickOptions = IM_ARRAYSIZE(modes);
+
+    Renderer::Initialize();
 
     while (!glfwWindowShouldClose(s_Window))
     {
@@ -272,14 +182,14 @@ int main()
             }
         }
 
+        Renderer::BeginScene(s_Projection);
         map.Draw(s_Projection);
         for (Player& player : players)
         {
-            player.Draw(&map);
-            map.DrawPath(player.CurrentPath, player.CurrentNodeIndex ? player.CurrentNodeIndex - 1 : 0, player.interpolatedPos, player.LineColor);
+            player.Draw(map);
         }
 
-        map.FlushDraw();
+        Renderer::EndScene();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -345,23 +255,7 @@ int main()
                 {
                     if (!players.empty())
                     {
-                        glm::ivec2 copy = players[targetPlayer].Goal;
-
-                        map.SetField(players[targetPlayer].Goal.x, players[targetPlayer].Goal.y, EFieldType::Empty);
-                        players[targetPlayer].Goal = {(int)x, (int)y};
-
-                        if (map.GetFieldAt(players[targetPlayer].Goal.x, players[targetPlayer].Goal.y) == EFieldType::Empty)
-                        {
-                            players[targetPlayer].CurrentPath = pathFindingAlgorithm->FindPathTo(players[targetPlayer].Pos,
-                                players[targetPlayer].Goal, &map);
-                            players[targetPlayer].CurrentNodeIndex = 0;
-                        }
-                        else
-                        {
-                            players[targetPlayer].Goal = copy;
-                        }
-
-                        map.SetField(players[targetPlayer].Goal.x, players[targetPlayer].Goal.y, EFieldType::Goal);
+                        players[targetPlayer].SetNewGoal({(int)x, (int)y}, map, pathFindingAlgorithm);
                     }
                 }
                 else if (rightClickOperationIndex == 1)
@@ -385,7 +279,7 @@ int main()
                     {
                         auto i = std::find_if(players.begin(), players.end(), [&](const Player& player)
                         {
-                            return player.Pos == placePoint;
+                            return player.GetGridPosition() == placePoint;
                         });
 
                         if (i != players.end())
@@ -423,10 +317,7 @@ int main()
                     if (players.size() < MaxAgents && map.GetFieldAt(placePoint.x, placePoint.y) == EFieldType::Empty)
                     {
                         targetPlayer = (int)players.size();
-                        players.emplace_back();
-                        players[targetPlayer].Pos = players[targetPlayer].PrevPos = placePoint;
-
-                        players[targetPlayer].CurrentNodeIndex = 0;
+                        players.emplace_back(placePoint, placePoint);
 
                         if (bAutoSwitchToSelectingDestination)
                         {
@@ -486,8 +377,9 @@ int main()
 
             ImGui::Combo("Agents", &targetPlayer, agents, (int)players.size());
 
-            if (!players.empty() && ImGui::ColorEdit4("Agent line color: ", &players[targetPlayer].LineColor[0]))
+            if (!players.empty())
             {
+                players[targetPlayer].DrawImGuiLineColorSelection();
             }
 
             ImGui::End();
@@ -510,6 +402,8 @@ int main()
         glfwSwapBuffers(s_Window);
     }
 
+
+    Renderer::Quit();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

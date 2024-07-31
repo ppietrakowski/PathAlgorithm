@@ -150,7 +150,9 @@
     <ClCompile Include="MapInterface.cpp" />
     <ClCompile Include="PathFindingAlgorithm.cpp" />
     <ClCompile Include="PathTracing.cpp" />
+    <ClCompile Include="Player.cpp" />
     <ClCompile Include="RectRenderer.cpp" />
+    <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="UniformBuffer.cpp" />
     <ClCompile Include="Utils.cpp" />
@@ -174,7 +176,9 @@
     <ClInclude Include="Map.h" />
     <ClInclude Include="MapInterface.h" />
     <ClInclude Include="PathFindingAlgorithm.h" />
+    <ClInclude Include="Player.h" />
     <ClInclude Include="RectRenderer.h" />
+    <ClInclude Include="Renderer.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="UniformBuffer.h" />

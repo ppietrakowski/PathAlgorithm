@@ -1,4 +1,5 @@
 #include "Map.h"
+#include "Renderer.h"
 
 glm::vec4 GetColorForField(EFieldType field)
 {
@@ -23,7 +24,6 @@ Map::Map(int32_t width, int32_t height) :
     m_Width(width),
     m_Height(height)
 {
-    lineBatch.Thickness = 2.0f;
 }
 
 EFieldType Map::GetFieldAt(int32_t x, int32_t y) const
@@ -65,9 +65,6 @@ FieldsByPositionIterator Map::end() const
 
 void Map::Draw(const glm::mat4& projection)
 {
-    rectRenderer.UpdateProjection(projection);
-    lineBatch.OnBeginScene(projection);
-
     for (auto [pos, field] : *this)
     {
         float posY = pos.y;
@@ -82,28 +79,25 @@ void Map::Draw(const glm::mat4& projection)
         if (field != EFieldType::Player)
         {
             /* Render bounds first */
-            rectRenderer.AddRectInstance(glm::vec3{posX, posY, -1.0f},
-                glm::vec3{CellSize, CellSize, 0.0f}, color);
+            Renderer::DrawRect(glm::vec3{posX, posY, -1.0f},
+                glm::vec3{CellSize, CellSize, 0.0f}, DrawCommandArgs{color});
 
             /* Now render right field */
-            rectRenderer.AddRectInstance(glm::vec3{posX + 2.5, posY + 2.5, -1.0f},
+            Renderer::DrawRect(glm::vec3{posX + 2.5, posY + 2.5, -1.0f},
                 glm::vec3{CellSize - 5, CellSize - 5, 0.0f},
-                GetColorForField(field));
+                DrawCommandArgs{GetColorForField(field)});
         }
         else
         {
-            rectRenderer.AddRectInstance(glm::vec3{posX, posY, -1.0f},
-                glm::vec3{CellSize, CellSize, 0.0f}, GetColorForField(EFieldType::Empty) * 0.4f);
+            Renderer::DrawRect(glm::vec3{posX, posY, -1.0f},
+                glm::vec3{CellSize, CellSize, 0.0f}, DrawCommandArgs{GetColorForField(EFieldType::Empty) * 0.4f});
 
             /* Now render right field */
-            rectRenderer.AddRectInstance(glm::vec3{posX + 2.5, posY + 2.5, -1.0f},
+            Renderer::DrawRect(glm::vec3{posX + 2.5, posY + 2.5, -1.0f},
                 glm::vec3{CellSize - 5, CellSize - 5, 0.0f},
-                GetColorForField(EFieldType::Empty));
+                DrawCommandArgs{GetColorForField(EFieldType::Empty)});
         }
     }
-
-    rectRenderer.FlushDraw();
-    lineBatch.FlushDraw();
 }
 
 void Map::AddPlayer(glm::ivec2 playerPos)
@@ -128,13 +122,13 @@ void Map::DrawPath(const Path& path, size_t startIndex, glm::vec2 startPos, glm:
             pos[j] *= CellSize;
             nextpos[j] *= CellSize;
         }
-        
+
         pos.x += CellSize / 2;
         pos.y += CellSize / 2;
         nextpos.x += CellSize / 2;
         nextpos.y += CellSize / 2;
 
-        lineBatch.DrawLine(pos, nextpos, glm::mat4{1.0f}, color);
+        Renderer::DrawLine(pos, nextpos, DrawCommandArgs{color});
     }
 
     for (size_t i = startIndex + 1; path.size() > 0 && i < path.size() - 1; ++i)
@@ -153,17 +147,6 @@ void Map::DrawPath(const Path& path, size_t startIndex, glm::vec2 startPos, glm:
         nextpos.x += CellSize / 2;
         nextpos.y += CellSize / 2;
 
-        lineBatch.DrawLine(pos, nextpos, glm::mat4{1.0f}, color);
+        Renderer::DrawLine(pos, nextpos, DrawCommandArgs{color});
     }
-}
-
-RectRenderer& Map::GetRectRenderer()
-{
-    return rectRenderer;
-}
-
-void Map::FlushDraw()
-{
-    rectRenderer.FlushDraw();
-    lineBatch.FlushDraw();
 }

@@ -49,7 +49,6 @@ static Path ReconstructPath(Node* node)
     return path;
 }
 
-
 struct AStarProrityQueue : public std::priority_queue<Node*, std::vector<Node*>, CompareNode>
 {
     container_type& GetContainer()
@@ -68,6 +67,19 @@ struct AStarProrityQueue : public std::priority_queue<Node*, std::vector<Node*>,
     }
 };
 
+#define NODE_POOL_SIZE 300
+
+AStarAlgorithm::AStarAlgorithm()
+{
+    m_Buffer = (Node*)std::malloc(sizeof(Node) * NODE_POOL_SIZE);
+    m_CurrentAllocationNode = m_Buffer;
+}
+
+AStarAlgorithm::~AStarAlgorithm() noexcept
+{
+    std::free(m_Buffer);
+}
+
 Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, const IMap* map)
 {
     AStarProrityQueue openList;
@@ -77,7 +89,7 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
     Node goalNode(goal);
     openList.push(&startNode);
 
-    std::vector<std::unique_ptr<Node>> nodesToDelete;
+    m_CurrentAllocationNode = m_Buffer;
 
     while (!openList.empty())
     {
@@ -104,12 +116,10 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
                 continue;
             }
 
-            Node* neighborNode = new Node(neighbor, currentNode);
+            Node* neighborNode = AllocateNode(neighbor, currentNode);
             neighborNode->CostFunc = currentNode->CostFunc + 1;
             neighborNode->Heuristics = GetHeuristicsForFields(neighbor, goal);
             neighborNode->EvaluationFunc = neighborNode->CostFunc + neighborNode->Heuristics;
-
-            nodesToDelete.emplace_back(neighborNode);
 
             auto it = std::find_if(openList.begin(), openList.end(), [&](Node* n)
             {
@@ -124,4 +134,11 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
     }
 
     return {}; // Return an empty path if no path is found
+}
+
+Node* AStarAlgorithm::AllocateNode(PathFindingPoint p, struct Node* parent)
+{
+    assert(m_CurrentAllocationNode - m_Buffer < NODE_POOL_SIZE);
+    new (&m_CurrentAllocationNode) Node(p, parent);
+    return m_CurrentAllocationNode++;
 }
