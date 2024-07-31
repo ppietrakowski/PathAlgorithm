@@ -134,6 +134,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Application.cpp" />
     <ClCompile Include="AStarAlgorithm.cpp" />
     <ClCompile Include="Buffers.cpp" />
     <ClCompile Include="GeneticPathFinding.cpp" />
@@ -159,6 +160,7 @@
     <ClCompile Include="VertexArray.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Application.h" />
     <ClInclude Include="AStarAlgorithm.h" />
     <ClInclude Include="Buffers.h" />
     <ClInclude Include="GeneticPathFinding.h" />

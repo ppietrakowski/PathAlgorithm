@@ -67,7 +67,7 @@ struct AStarProrityQueue : public std::priority_queue<Node*, std::vector<Node*>,
     }
 };
 
-#define NODE_POOL_SIZE 300
+#define NODE_POOL_SIZE 800
 
 AStarAlgorithm::AStarAlgorithm()
 {
@@ -138,7 +138,7 @@ Path AStarAlgorithm::FindPathTo(PathFindingPoint start, PathFindingPoint goal, c
 
 Node* AStarAlgorithm::AllocateNode(PathFindingPoint p, struct Node* parent)
 {
-    assert(m_CurrentAllocationNode - m_Buffer < NODE_POOL_SIZE);
-    new (&m_CurrentAllocationNode) Node(p, parent);
+    assert(!(m_CurrentAllocationNode - m_Buffer >+ NODE_POOL_SIZE));
+    new (m_CurrentAllocationNode) Node(p, parent);
     return m_CurrentAllocationNode++;
 }
