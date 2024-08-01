@@ -85,8 +85,8 @@ void Map::Draw(const glm::mat4& projection)
 {
     for (auto [pos, field] : *this)
     {
-        float posY = pos.y;
-        float posX = pos.x;
+        float posY = static_cast<float>(pos.y);
+        float posX = static_cast<float>(pos.x);
 
         posY *= CellSize;
         posX *= CellSize;

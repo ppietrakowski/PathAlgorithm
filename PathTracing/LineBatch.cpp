@@ -75,7 +75,7 @@ void LineBatch::FlushDraw()
         return;
     }
 
-    m_VertexBuffer->UpdateBuffer(m_Vertices, (m_LastVertex - m_Vertices)*sizeof(LineVertex), 0);
+    m_VertexBuffer->UpdateBuffer(m_Vertices, static_cast<int>((m_LastVertex - m_Vertices) *sizeof(LineVertex)), 0);
 
     m_VertexArray.Bind();
     glLineWidth(Thickness);

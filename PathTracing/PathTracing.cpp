@@ -3,8 +3,8 @@
 
 #include "Application.h"
 
-static const float InitialWindowSizeX = Application::MapWidth * Application::CellSize;
-static const float InitialWindowSizeY = Application::MapHeight * Application::CellSize;
+static const int InitialWindowSizeX = static_cast<int>(Application::MapWidth * Application::CellSize);
+static const int InitialWindowSizeY = static_cast<int>(Application::MapHeight * Application::CellSize);
 
 int main()
 {
