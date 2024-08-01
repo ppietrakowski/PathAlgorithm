@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include "LineBatch.h"
 #include "RectRenderer.h"
+#include <glad/glad.h>
 
 struct RendererData
 {
@@ -15,8 +16,8 @@ struct RendererData
 
     void FlushDraw()
     {
-        lineBatch.FlushDraw();
         rectRenderer.FlushDraw();
+        lineBatch.FlushDraw();
     }
 };
 
@@ -58,4 +59,9 @@ void Renderer::EndScene()
 void Renderer::FlushDraw()
 {
     s_RendererData->FlushDraw();
+}
+
+void Renderer::Clear()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }

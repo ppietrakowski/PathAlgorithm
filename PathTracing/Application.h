@@ -1,13 +1,14 @@
 #pragma once
 
-#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <vector>
+#include <chrono>
 
 #include "Map.h"
 #include "Player.h"
 
+typedef std::chrono::system_clock SystemClock;
 constexpr size_t MaxAgents = 10;
 
 class Application
@@ -52,7 +53,12 @@ private:
 
     int m_NumRightClickOptions = 4;
 
+    SystemClock::time_point m_StartTime;
+
 private:
     static void MouseKeyCallback(GLFWwindow* window, int key, int action, int mods);
+    bool IsAiUpdateFrame() const;
+
+    void AiUpdate();
 };
 

@@ -20,5 +20,7 @@ public:
     static void BeginScene(const glm::mat4& projection);
     static void EndScene();
     static void FlushDraw();
+
+    static void Clear();
 };
 

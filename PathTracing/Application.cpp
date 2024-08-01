@@ -1,3 +1,4 @@
+#include <glad/glad.h>
 #include "Application.h"
 #include "PathFindingAlgorithm.h"
 
@@ -8,9 +9,6 @@
 #include "Renderer.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <cstdlib>
-#include <chrono>
-
-typedef std::chrono::system_clock SystemClock;
 
 static float SnapToGrid(float value, float gridSize)
 {
@@ -20,10 +18,11 @@ static float SnapToGrid(float value, float gridSize)
 static Application* s_AppInstance = nullptr;
 
 Application::Application(int width, int height, const char* title) :
-    m_Width(width),
-    m_Height(height),
+    m_Width(static_cast<float>(width)),
+    m_Height(static_cast<float>(height)),
     m_Projection(glm::ortho(0.0f, m_Width, 0.0f, m_Height, -10.0f, 10.0f)),
-    m_Map(Map::Create(MapWidth, MapHeight))
+    m_Map(Map::Create(MapWidth, MapHeight)),
+    m_TargetPlayer(0)
 {
     if (!glfwInit())
     {
@@ -92,22 +91,17 @@ Application::~Application() noexcept
 
 void Application::Run()
 {
-    auto startTime = SystemClock::now();
+    m_StartTime = SystemClock::now();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 
     while (!glfwWindowShouldClose(m_Window))
     {
         glfwPollEvents();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        Renderer::Clear();
 
-        if (SystemClock::now() - startTime >= std::chrono::milliseconds{300})
+        if (IsAiUpdateFrame())
         {
-            startTime = SystemClock::now();
-
-            for (Player& player : m_Players)
-            {
-                player.Move();
-            }
+            AiUpdate();
         }
 
         Renderer::BeginScene(m_Projection);
@@ -123,7 +117,6 @@ void Application::Run()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
 
         static int selectedPathAlgo;
 
@@ -144,9 +137,6 @@ void Application::Run()
             y = m_Height - y;
             x /= m_Map->GetCellSize();
             y /= m_Map->GetCellSize();
-
-            x = SnapToGrid(x, 1);
-            y = SnapToGrid(y, 1);
 
             glm::ivec2 cursorPosSnapped = {(int)x, (int)y};
 
@@ -261,4 +251,19 @@ void Application::MouseKeyCallback(GLFWwindow* window, int key, int action, int 
     {
         s_AppInstance->m_bClickedMouseLastFrame = true;
     }
+}
+
+void Application::AiUpdate()
+{
+    m_StartTime = SystemClock::now();
+
+    for (Player& player : m_Players)
+    {
+        player.Move();
+    }
+}
+
+bool Application::IsAiUpdateFrame() const
+{ 
+    return SystemClock::now() - m_StartTime >= std::chrono::milliseconds{300};
 }

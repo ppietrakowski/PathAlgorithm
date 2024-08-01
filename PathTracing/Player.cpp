@@ -150,6 +150,9 @@ void Player::DrawPath(glm::vec3 start, glm::vec3 end)
     end.x += cellSize / 2;
     end.y += cellSize / 2;
 
+    start.z = 1.5f;
+    end.z = 1.5f;
+
     Renderer::DrawLine(start, end, DrawCommandArgs{m_LineColor});
 }
 

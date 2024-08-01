@@ -32,11 +32,6 @@ public:
     virtual FieldsByPositionIterator end() const override;
 
     void Draw(const glm::mat4& projection);
-
-    bool bVisualizePath = true;
-
-    void DrawPath(const Path& path, size_t startIndex, glm::vec2 startPos, glm::vec4 color = glm::vec4{1.0f});
-
     virtual float GetCellSize() const override;
 
 private:
@@ -47,6 +42,9 @@ private:
     int32_t m_Width;
     int32_t m_Height;
     float CellSize = 64.0f;
+
+private:
+    void DrawCell(glm::ivec2 pos, EFieldType field);
 };
 
 glm::vec4 GetColorForField(EFieldType field);
