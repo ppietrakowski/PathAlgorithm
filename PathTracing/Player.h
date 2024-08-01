@@ -9,11 +9,11 @@ public:
     Player() = default;
     Player(PathFindingPoint startPos, PathFindingPoint goalPos, glm::vec4 lineColor = glm::vec4{1.0f});
 
-    void Move(IPathFindingAlgorithm* algorithm);
+    void Move();
     void Draw();
 
-    void RecalculatePath(IPathFindingAlgorithm* algorithm);
-    void SetNewGoal(PathFindingPoint newGoal, IPathFindingAlgorithm *pathFindingAlgorithm);
+    void RecalculatePath();
+    void SetNewGoal(PathFindingPoint newGoal);
 
     PathFindingPoint GetGridPosition() const;
 

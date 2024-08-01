@@ -9,7 +9,7 @@ Player::Player(PathFindingPoint startPos, PathFindingPoint goalPos, glm::vec4 li
 {
 }
 
-void Player::Move(IPathFindingAlgorithm* algorithm)
+void Player::Move()
 {
     if (m_CurrentNodeIndex >= m_CurrentPath.size())
     {
@@ -24,7 +24,7 @@ void Player::Move(IPathFindingAlgorithm* algorithm)
     if ((field != EFieldType::Empty && field != EFieldType::Goal) && m_Position != m_PrevPosition)
     {
         m_Position = m_PrevPosition;
-        RecalculatePath(algorithm);
+        RecalculatePath();
         m_CurrentNodeIndex = 0;
         return;
     }
@@ -89,7 +89,7 @@ bool Player::IsAlreadyOccupiedBySomeone(PathFindingPoint point) const
     return point != m_Position && map->GetFieldAt(m_Position) != EFieldType::Empty && map->GetFieldAt(m_Position) != EFieldType::Goal;
 }
 
-void Player::RecalculatePath(IPathFindingAlgorithm* algorithm)
+void Player::RecalculatePath()
 {
     auto map = IMap::GetInstance();
 
@@ -98,10 +98,10 @@ void Player::RecalculatePath(IPathFindingAlgorithm* algorithm)
         m_Goal = m_CurrentPath.back();
     }
 
-    m_CurrentPath = std::move(algorithm->FindPathTo(m_Position, m_Goal, map.get()));
+    m_CurrentPath = std::move(PathFindingAlgorithm::FindPathTo(m_Position, m_Goal));
 }
 
-void Player::SetNewGoal(PathFindingPoint newGoal, IPathFindingAlgorithm* pathFindingAlgorithm)
+void Player::SetNewGoal(PathFindingPoint newGoal)
 {
     auto map = IMap::GetInstance();
 
@@ -112,7 +112,7 @@ void Player::SetNewGoal(PathFindingPoint newGoal, IPathFindingAlgorithm* pathFin
 
     if (map->GetFieldAt(m_Goal) == EFieldType::Empty)
     {
-        m_CurrentPath = pathFindingAlgorithm->FindPathTo(m_Position, m_Goal, map.get());
+        m_CurrentPath = PathFindingAlgorithm::FindPathTo(m_Position, m_Goal);
         m_CurrentNodeIndex = 0;
     }
     else

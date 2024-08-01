@@ -6,8 +6,6 @@
 #include <vector>
 
 #include "Map.h"
-#include "AStarAlgorithm.h"
-#include "GeneticPathFinding.h"
 #include "Player.h"
 
 constexpr size_t MaxAgents = 10;
@@ -32,9 +30,6 @@ private:
 
     bool m_bClickedMouseLastFrame = false;
     std::shared_ptr<Map> m_Map;
-    AStarAlgorithm m_AStarAlgorithm;
-    GeneticPathFinding m_GeneticPathFinding;
-    IPathFindingAlgorithm* m_PathFindingAlgorithm;
 
     const char* m_PathFindingModes[2] = {
         "A* Path finding",

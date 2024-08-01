@@ -135,9 +135,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
-    <ClCompile Include="AStarAlgorithm.cpp" />
     <ClCompile Include="Buffers.cpp" />
-    <ClCompile Include="GeneticPathFinding.cpp" />
     <ClCompile Include="Glad\src\glad.c" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
@@ -161,9 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
-    <ClInclude Include="AStarAlgorithm.h" />
     <ClInclude Include="Buffers.h" />
-    <ClInclude Include="GeneticPathFinding.h" />
     <ClInclude Include="Glad\include\glad\glad.h" />
     <ClInclude Include="Glad\include\KHR\khrplatform.h" />
     <ClInclude Include="imgui\imconfig.h" />

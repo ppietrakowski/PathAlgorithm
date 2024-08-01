@@ -20,17 +20,6 @@ namespace std
 
 typedef std::vector<PathFindingPoint> Path;
 
-class IPathFindingAlgorithm
-{
-public:
-    virtual ~IPathFindingAlgorithm() = default;
-
-    virtual Path FindPathTo(PathFindingPoint start, PathFindingPoint goal, const IMap* map) = 0;
-
-    virtual void OnUpdate() { }
-};
-
-
 inline bool IsWalkable(const PathFindingPoint& point, const IMap* map)
 {
     return point.x >= 0 &&
@@ -42,3 +31,13 @@ inline bool IsWalkable(const PathFindingPoint& point, const IMap* map)
             map->GetFieldAt(point) == EFieldType::Goal
         );
 }
+
+class PathFindingAlgorithm
+{
+public:
+    static void Initialize();
+    static void Quit();
+
+public:
+    static Path FindPathTo(PathFindingPoint start, PathFindingPoint goal);
+};

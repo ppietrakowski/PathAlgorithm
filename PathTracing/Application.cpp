@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "PathFindingAlgorithm.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
@@ -70,16 +71,22 @@ Application::Application(int width, int height, const char* title) :
         m_Map->SetField(pos, EFieldType::Obstacle);
     }
 
-    m_PathFindingAlgorithm = &m_AStarAlgorithm;
     Renderer::Initialize();
+    PathFindingAlgorithm::Initialize();
     s_AppInstance = this;
 }
 
 Application::~Application() noexcept
 {
+    PathFindingAlgorithm::Quit();
+    Renderer::Quit();
+    
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     glfwDestroyWindow(m_Window);
     glfwTerminate();
-    Renderer::Quit();
     s_AppInstance = nullptr;
 }
 
@@ -99,7 +106,7 @@ void Application::Run()
 
             for (Player& player : m_Players)
             {
-                player.Move(m_PathFindingAlgorithm);
+                player.Move();
             }
         }
 
@@ -121,32 +128,6 @@ void Application::Run()
         static int selectedPathAlgo;
 
         ImGui::Begin("Settings");
-        if (ImGui::Combo("Path finding algorithm", &selectedPathAlgo, m_PathFindingModes, IM_ARRAYSIZE(m_PathFindingModes)))
-        {
-            IPathFindingAlgorithm* newPathAlgorithm = nullptr;
-
-            switch (selectedPathAlgo)
-            {
-            case 0:
-                newPathAlgorithm = &m_AStarAlgorithm;
-                break;
-            case 1:
-                newPathAlgorithm = &m_GeneticPathFinding;
-                break;
-            default:
-                break;
-            }
-
-            if (newPathAlgorithm != m_PathFindingAlgorithm)
-            {
-                for (Player& player : m_Players)
-                {
-                    player.RecalculatePath(newPathAlgorithm);
-                }
-
-                m_PathFindingAlgorithm = newPathAlgorithm;
-            }
-        }
 
         static int rightClickOperationIndex = 1;
         static bool bAutoSwitchToSelectingDestination = true;
@@ -173,7 +154,7 @@ void Application::Run()
             {
                 if (!m_Players.empty())
                 {
-                    m_Players[m_TargetPlayer].SetNewGoal(cursorPosSnapped, m_PathFindingAlgorithm);
+                    m_Players[m_TargetPlayer].SetNewGoal(cursorPosSnapped);
                 }
             }
             else if (rightClickOperationIndex == 1)
@@ -248,47 +229,6 @@ void Application::Run()
         }
 
         ImGui::Checkbox("bAutoSwitchToTargetPostAddedAgent", &bAutoSwitchToSelectingDestination);
-
-        if (&m_GeneticPathFinding == m_PathFindingAlgorithm)
-        {
-            static float MutRate = 0.01f;
-
-            ImGui::LabelText("Genetic algorithm settings", "Genetic algorithm settings");
-            if (ImGui::DragFloat("MutationRate", &MutRate, 0.01f, 0.01f, 1.0f))
-            {
-                m_GeneticPathFinding.MutationRate = MutRate;
-
-                for (Player& player : m_Players)
-                {
-                    player.RecalculatePath(m_PathFindingAlgorithm);
-                }
-            }
-
-            static int NumGens = 100;
-
-            if (ImGui::DragInt("NumGenerations", &NumGens, 1, 10, 1000))
-            {
-                m_GeneticPathFinding.NumGenerations = NumGens;
-
-                for (Player& player : m_Players)
-                {
-                    player.RecalculatePath(m_PathFindingAlgorithm);
-                }
-            }
-
-            static int PopSize = 100;
-
-            if (ImGui::DragInt("Population size", &PopSize, 1, 10, 1000))
-            {
-                m_GeneticPathFinding.PopulationSize = PopSize;
-
-                for (Player& player : m_Players)
-                {
-                    player.RecalculatePath(m_PathFindingAlgorithm);
-                }
-            }
-        }
-
         ImGui::Combo("Agents", &m_TargetPlayer, m_AgentsName, (int)m_Players.size());
 
         if (!m_Players.empty())
