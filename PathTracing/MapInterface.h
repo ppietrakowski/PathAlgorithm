@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <glm/glm.hpp>
+#include <memory>
 
 enum class EFieldType : uint8_t
 {
@@ -37,15 +38,25 @@ private:
     glm::ivec2 m_Pos;
 };
 
-class IMap
+class IMap : public std::enable_shared_from_this<IMap>
 {
 public:
-    virtual ~IMap() = default;
+    IMap() = default;
+    virtual ~IMap() noexcept = default;
 
-    virtual EFieldType GetFieldAt(int32_t x, int32_t y) const = 0;
+    static std::shared_ptr<IMap> GetInstance();
+
+    virtual EFieldType GetFieldAt(glm::ivec2 gridPosition) const = 0;
+    virtual void SetField(glm::ivec2 gridPosition, EFieldType field) = 0;
+
     virtual int32_t GetMapWidth() const = 0;
     virtual int32_t GetMapHeight() const = 0;
 
     virtual FieldsByPositionIterator begin() const = 0;
     virtual FieldsByPositionIterator end() const = 0;
+
+    virtual float GetCellSize() const = 0;
+
+protected:
+    static std::weak_ptr<IMap> s_Instance;
 };

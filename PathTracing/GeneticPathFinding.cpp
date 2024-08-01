@@ -141,7 +141,7 @@ double GeneticPathFinding::GetFitnessValueForPath(const Path& path)
 
     for (size_t i = 0; i < path.size() - 1; ++i)
     {
-        if (m_Map->GetFieldAt(path[i].x, path[i].y) != EFieldType::Empty)
+        if (m_Map->GetFieldAt(path[i]) != EFieldType::Empty)
         {
             fitness += 1000; // High penalty for collision
         }
@@ -151,7 +151,7 @@ double GeneticPathFinding::GetFitnessValueForPath(const Path& path)
 
     auto lastPoint = path.back();
 
-    if (m_Map->GetFieldAt(lastPoint.x, lastPoint.y) != EFieldType::Empty)
+    if (m_Map->GetFieldAt(lastPoint) != EFieldType::Empty)
     {
         fitness += 1000;
     }

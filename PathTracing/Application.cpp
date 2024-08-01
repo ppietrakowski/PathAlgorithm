@@ -22,7 +22,7 @@ Application::Application(int width, int height, const char* title) :
     m_Width(width),
     m_Height(height),
     m_Projection(glm::ortho(0.0f, m_Width, 0.0f, m_Height, -10.0f, 10.0f)),
-    m_Map(MapWidth, MapHeight)
+    m_Map(Map::Create(MapWidth, MapHeight))
 {
     if (!glfwInit())
     {
@@ -67,7 +67,7 @@ Application::Application(int width, int height, const char* title) :
     for (int i = 0; i < 10; ++i)
     {
         glm::ivec2 pos(std::rand() % MapWidth, std::rand() % MapHeight);
-        m_Map.SetField(pos.x, pos.y, EFieldType::Obstacle);
+        m_Map->SetField(pos, EFieldType::Obstacle);
     }
 
     m_PathFindingAlgorithm = &m_AStarAlgorithm;
@@ -99,15 +99,16 @@ void Application::Run()
 
             for (Player& player : m_Players)
             {
-                player.Move(m_PathFindingAlgorithm, &m_Map);
+                player.Move(m_PathFindingAlgorithm);
             }
         }
 
         Renderer::BeginScene(m_Projection);
-        m_Map.Draw(m_Projection);
+        m_Map->Draw(m_Projection);
+
         for (Player& player : m_Players)
         {
-            player.Draw(m_Map);
+            player.Draw();
         }
 
         Renderer::EndScene();
@@ -140,7 +141,7 @@ void Application::Run()
             {
                 for (Player& player : m_Players)
                 {
-                    player.RecalculatePath(newPathAlgorithm, &m_Map);
+                    player.RecalculatePath(newPathAlgorithm);
                 }
 
                 m_PathFindingAlgorithm = newPathAlgorithm;
@@ -160,41 +161,41 @@ void Application::Run()
             glfwGetCursorPos(m_Window, &x, &y);
 
             y = m_Height - y;
-            x /= m_Map.CellSize;
-            y /= m_Map.CellSize;
+            x /= m_Map->GetCellSize();
+            y /= m_Map->GetCellSize();
 
             x = SnapToGrid(x, 1);
             y = SnapToGrid(y, 1);
+
+            glm::ivec2 cursorPosSnapped = {(int)x, (int)y};
 
             if (rightClickOperationIndex == 0)
             {
                 if (!m_Players.empty())
                 {
-                    m_Players[m_TargetPlayer].SetNewGoal({(int)x, (int)y}, m_Map, m_PathFindingAlgorithm);
+                    m_Players[m_TargetPlayer].SetNewGoal(cursorPosSnapped, m_PathFindingAlgorithm);
                 }
             }
             else if (rightClickOperationIndex == 1)
             {
-                EFieldType field = m_Map.GetFieldAt((int)x, (int)y);
+                EFieldType field = m_Map->GetFieldAt(cursorPosSnapped);
 
                 if (field == EFieldType::Obstacle)
                 {
-                    m_Map.SetField((int)x, (int)y, EFieldType::Empty);
+                    m_Map->SetField(cursorPosSnapped, EFieldType::Empty);
                 }
                 else if (field == EFieldType::Empty)
                 {
-                    m_Map.SetField((int)x, (int)y, EFieldType::Obstacle);
+                    m_Map->SetField(cursorPosSnapped, EFieldType::Obstacle);
                 }
             }
             else if (rightClickOperationIndex == 2)
             {
-                PathFindingPoint placePoint = {(int)x, (int)y};
-
-                if (m_Map.GetFieldAt(placePoint.x, placePoint.y) == EFieldType::Player)
+                if (m_Map->GetFieldAt(cursorPosSnapped) == EFieldType::Player)
                 {
-                    auto i = std::find_if(m_Players.begin(), m_Players.end(), [&](const Player& player)
+                    auto i = std::find_if(m_Players.begin(), m_Players.end(), [cursorPosSnapped](const Player& player)
                     {
-                        return player.GetGridPosition() == placePoint;
+                        return player.GetGridPosition() == cursorPosSnapped;
                     });
 
                     if (i != m_Players.end())
@@ -204,7 +205,7 @@ void Application::Run()
                             m_TargetPlayer = 0;
                         }
 
-                        m_Map.SetField(placePoint.x, placePoint.y, EFieldType::Empty);
+                        m_Map->SetField(cursorPosSnapped, EFieldType::Empty);
                         m_Players.erase(i);
 
                         if (m_Players.empty())
@@ -227,12 +228,10 @@ void Application::Run()
             }
             else if (rightClickOperationIndex == 3)
             {
-                PathFindingPoint placePoint = {(int)x, (int)y};
-
-                if (m_Players.size() < MaxAgents && m_Map.GetFieldAt(placePoint.x, placePoint.y) == EFieldType::Empty)
+                if (m_Players.size() < MaxAgents && m_Map->GetFieldAt(cursorPosSnapped) == EFieldType::Empty)
                 {
                     m_TargetPlayer = (int)m_Players.size();
-                    m_Players.emplace_back(placePoint, placePoint);
+                    m_Players.emplace_back(cursorPosSnapped, cursorPosSnapped);
 
                     if (bAutoSwitchToSelectingDestination)
                     {
@@ -261,7 +260,7 @@ void Application::Run()
 
                 for (Player& player : m_Players)
                 {
-                    player.RecalculatePath(m_PathFindingAlgorithm, &m_Map);
+                    player.RecalculatePath(m_PathFindingAlgorithm);
                 }
             }
 
@@ -273,7 +272,7 @@ void Application::Run()
 
                 for (Player& player : m_Players)
                 {
-                    player.RecalculatePath(m_PathFindingAlgorithm, &m_Map);
+                    player.RecalculatePath(m_PathFindingAlgorithm);
                 }
             }
 
@@ -285,7 +284,7 @@ void Application::Run()
 
                 for (Player& player : m_Players)
                 {
-                    player.RecalculatePath(m_PathFindingAlgorithm, &m_Map);
+                    player.RecalculatePath(m_PathFindingAlgorithm);
                 }
             }
         }

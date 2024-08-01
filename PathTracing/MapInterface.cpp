@@ -1,5 +1,7 @@
 #include "MapInterface.h"
 
+std::weak_ptr<IMap> IMap::s_Instance = {};
+
 FieldsByPositionIterator::FieldsByPositionIterator(const IMap* map, glm::ivec2 pos) :
     m_Map(map),
     m_Pos(pos)
@@ -35,5 +37,10 @@ FieldsByPositionIterator& FieldsByPositionIterator::operator++()
 
 std::pair<glm::ivec2, EFieldType> FieldsByPositionIterator::operator*() const
 {
-    return {m_Pos, m_Map->GetFieldAt(m_Pos.x, m_Pos.y)};
+    return {m_Pos, m_Map->GetFieldAt(m_Pos)};
+}
+
+std::shared_ptr<IMap> IMap::GetInstance()
+{
+    return s_Instance.lock();
 }

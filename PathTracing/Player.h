@@ -9,13 +9,11 @@ public:
     Player() = default;
     Player(PathFindingPoint startPos, PathFindingPoint goalPos, glm::vec4 lineColor = glm::vec4{1.0f});
 
-    void Move(IPathFindingAlgorithm* algorithm, Map* map);
-    void Draw(Map& map);
+    void Move(IPathFindingAlgorithm* algorithm);
+    void Draw();
 
-    bool IsAlreadyOccupiedBySomeone(const Map& map, PathFindingPoint point) const;
-    void RecalculatePath(IPathFindingAlgorithm* algorithm, Map* map);
-
-    void SetNewGoal(PathFindingPoint newGoal, Map& map, IPathFindingAlgorithm *pathFindingAlgorithm);
+    void RecalculatePath(IPathFindingAlgorithm* algorithm);
+    void SetNewGoal(PathFindingPoint newGoal, IPathFindingAlgorithm *pathFindingAlgorithm);
 
     PathFindingPoint GetGridPosition() const;
 
@@ -33,7 +31,8 @@ private:
     glm::vec4 m_LineColor{1.0f};
 
 private:
-    void DrawPath(glm::vec3 start, glm::vec3 end, Map& map);
-    void InterpolateMovement(const Map& map);
+    bool IsAlreadyOccupiedBySomeone(PathFindingPoint point) const;
+    void DrawPath(glm::vec3 start, glm::vec3 end);
+    void InterpolateMovement();
 };
 

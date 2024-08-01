@@ -31,7 +31,7 @@ private:
     glm::mat4 m_Projection;
 
     bool m_bClickedMouseLastFrame = false;
-    Map m_Map;
+    std::shared_ptr<Map> m_Map;
     AStarAlgorithm m_AStarAlgorithm;
     GeneticPathFinding m_GeneticPathFinding;
     IPathFindingAlgorithm* m_PathFindingAlgorithm;

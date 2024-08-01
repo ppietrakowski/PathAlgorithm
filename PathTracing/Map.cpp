@@ -26,20 +26,38 @@ Map::Map(int32_t width, int32_t height) :
 {
 }
 
-EFieldType Map::GetFieldAt(int32_t x, int32_t y) const
+Map::Map(const MapInitialData& initialData):
+    Map(initialData.width, initialData.height)
 {
-    return m_Fields[x + y * m_Width];
 }
 
-void Map::SetField(int32_t x, int32_t y, EFieldType field)
+Map::~Map() noexcept
 {
-    int32_t index = x + y * m_Width;
+    s_Instance = {};
+}
+
+std::shared_ptr<Map> Map::Create(int width, int height)
+{
+    std::shared_ptr<Map> map = std::make_shared<Map>(MapInitialData{width, height});
+    assert(s_Instance.expired());
+    s_Instance = map;
+    return map;
+}
+
+EFieldType Map::GetFieldAt(glm::ivec2 gridPosition) const
+{
+    return m_Fields[gridPosition.x + gridPosition.y * m_Width];
+}
+
+void Map::SetField(glm::ivec2 gridPosition, EFieldType field)
+{
+    int32_t index = gridPosition.x + gridPosition.y * m_Width;
     m_Fields[index] = field;
 }
 
-bool Map::IsEmpty(int32_t x, int32_t y) const
+bool Map::IsEmpty(glm::ivec2 gridPosition) const
 {
-    return GetFieldAt(x, y) == EFieldType::Empty;
+    return GetFieldAt(gridPosition) == EFieldType::Empty;
 }
 
 int32_t Map::GetMapWidth() const
@@ -100,16 +118,6 @@ void Map::Draw(const glm::mat4& projection)
     }
 }
 
-void Map::AddPlayer(glm::ivec2 playerPos)
-{
-    SetField(playerPos.x, playerPos.y, EFieldType::Player);
-}
-
-void Map::RemovePlayer(glm::ivec2 playerPos)
-{
-    SetField(playerPos.x, playerPos.y, EFieldType::Empty);
-}
-
 void Map::DrawPath(const Path& path, size_t startIndex, glm::vec2 startPos, glm::vec4 color)
 {
     if (startIndex + 1 < path.size())
@@ -149,4 +157,9 @@ void Map::DrawPath(const Path& path, size_t startIndex, glm::vec2 startPos, glm:
 
         Renderer::DrawLine(pos, nextpos, DrawCommandArgs{color});
     }
+}
+
+float Map::GetCellSize() const
+{
+    return CellSize;
 }
